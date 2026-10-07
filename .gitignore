@@ -11,3 +11,7 @@ out/
 
 # Carpeta de reparto interna (no se sube al repo)
 _reparto/
+
+# Documentos de trabajo (fuera del repo; solo se versiona el README)
+docs/
+*.log
