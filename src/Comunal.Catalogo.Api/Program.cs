@@ -1,8 +1,12 @@
+using System.Text;
 using Comunal.Catalogo.Api.Middleware;
 using Comunal.Catalogo.Application;
 using Comunal.Catalogo.Infrastructure;
 using Comunal.Catalogo.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,17 +14,50 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddApplication();                         // MediatR + casos de uso (CQRS)
 builder.Services.AddInfrastructure(builder.Configuration); // EF Core + SQL Server, repositorios y Unit of Work
 
+// --- Validación del JWT emitido por Identity (firma, emisor, audiencia y vigencia) ---
+var jwtSection = builder.Configuration.GetSection("Jwt");
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSection["Issuer"],
+            ValidAudience = jwtSection["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection["Key"]!)),
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+builder.Services.AddAuthorization();
+
 // --- Servicios web ---
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Comunal - Catálogo API",
         Version = "v1",
         Description = "Microservicio de catálogo de objetos de la comunidad (Clean Architecture + DDD + CQRS)."
     });
+
+    var esquema = new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Pega aquí el JWT emitido por Identity (sin la palabra 'Bearer').",
+        Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+    };
+    options.AddSecurityDefinition("Bearer", esquema);
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement { [esquema] = Array.Empty<string>() });
 });
 
 var app = builder.Build();
@@ -42,6 +79,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
