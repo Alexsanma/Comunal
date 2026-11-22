@@ -1,0 +1,143 @@
+{
+  "info": {
+    "name": "Comunal - Entrega 2 (Autenticación y Autorización)",
+    "description": "Pruebas de los 3 microservicios: login y emisión de JWT (Identity), y acceso autorizado por roles en Catálogo y Préstamos. Los logins guardan automáticamente los tokens en las variables tokenAdmin y tokenMiembro.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "identityUrl", "value": "http://localhost:5100" },
+    { "key": "catalogoUrl", "value": "http://localhost:5090" },
+    { "key": "prestamosUrl", "value": "http://localhost:5110" },
+    { "key": "tokenAdmin", "value": "" },
+    { "key": "tokenMiembro", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Login Administrador (200)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "var d = pm.response.json();",
+        "if (d.token) { pm.collectionVariables.set('tokenAdmin', d.token); }"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@comunal.com\",\n  \"password\": \"Admin123$\"\n}" },
+        "url": { "raw": "{{identityUrl}}/api/auth/login", "host": ["{{identityUrl}}"], "path": ["api", "auth", "login"] }
+      }
+    },
+    {
+      "name": "2. Login Miembro (200)",
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "var d = pm.response.json();",
+        "if (d.token) { pm.collectionVariables.set('tokenMiembro', d.token); }"
+      ] } }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"miembro@comunal.com\",\n  \"password\": \"Miembro123$\"\n}" },
+        "url": { "raw": "{{identityUrl}}/api/auth/login", "host": ["{{identityUrl}}"], "path": ["api", "auth", "login"] }
+      }
+    },
+    {
+      "name": "3. Login credenciales inválidas (401)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@comunal.com\",\n  \"password\": \"claveIncorrecta\"\n}" },
+        "url": { "raw": "{{identityUrl}}/api/auth/login", "host": ["{{identityUrl}}"], "path": ["api", "auth", "login"] }
+      }
+    },
+    {
+      "name": "4. Identity: /me con token (200)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{tokenAdmin}}" }],
+        "url": { "raw": "{{identityUrl}}/api/auth/me", "host": ["{{identityUrl}}"], "path": ["api", "auth", "me"] }
+      }
+    },
+    {
+      "name": "5. Catálogo: GET sin token (401)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{catalogoUrl}}/api/objetos", "host": ["{{catalogoUrl}}"], "path": ["api", "objetos"] }
+      }
+    },
+    {
+      "name": "6. Catálogo: GET con token válido (200)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{tokenMiembro}}" }],
+        "url": { "raw": "{{catalogoUrl}}/api/objetos", "host": ["{{catalogoUrl}}"], "path": ["api", "objetos"] }
+      }
+    },
+    {
+      "name": "7. Catálogo: POST como Miembro -> sin rol (403)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{tokenMiembro}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Andamio\",\n  \"descripcion\": \"Andamio metálico de 2 metros.\",\n  \"categoriaId\": 1,\n  \"propietarioId\": \"11111111-1111-1111-1111-111111111111\"\n}" },
+        "url": { "raw": "{{catalogoUrl}}/api/objetos", "host": ["{{catalogoUrl}}"], "path": ["api", "objetos"] }
+      }
+    },
+    {
+      "name": "8. Catálogo: POST como Administrador (201)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{tokenAdmin}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"nombre\": \"Andamio\",\n  \"descripcion\": \"Andamio metálico de 2 metros.\",\n  \"categoriaId\": 1,\n  \"propietarioId\": \"11111111-1111-1111-1111-111111111111\"\n}" },
+        "url": { "raw": "{{catalogoUrl}}/api/objetos", "host": ["{{catalogoUrl}}"], "path": ["api", "objetos"] }
+      }
+    },
+    {
+      "name": "9. Préstamos: GET con token (200)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{tokenMiembro}}" }],
+        "url": { "raw": "{{prestamosUrl}}/api/prestamos", "host": ["{{prestamosUrl}}"], "path": ["api", "prestamos"] }
+      }
+    },
+    {
+      "name": "10. Préstamos: solicitar como Miembro (201)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{tokenMiembro}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"objetoId\": 3\n}" },
+        "url": { "raw": "{{prestamosUrl}}/api/prestamos", "host": ["{{prestamosUrl}}"], "path": ["api", "prestamos"] }
+      }
+    },
+    {
+      "name": "11. Préstamos: aprobar como Miembro -> sin rol (403)",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Authorization", "value": "Bearer {{tokenMiembro}}" }],
+        "url": { "raw": "{{prestamosUrl}}/api/prestamos/1/aprobar", "host": ["{{prestamosUrl}}"], "path": ["api", "prestamos", "1", "aprobar"] }
+      }
+    },
+    {
+      "name": "12. Préstamos: aprobar como Administrador (204)",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Authorization", "value": "Bearer {{tokenAdmin}}" }],
+        "url": { "raw": "{{prestamosUrl}}/api/prestamos/1/aprobar", "host": ["{{prestamosUrl}}"], "path": ["api", "prestamos", "1", "aprobar"] }
+      }
+    },
+    {
+      "name": "13. Catálogo: token inválido (401)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer token.invalido.123" }],
+        "url": { "raw": "{{catalogoUrl}}/api/objetos", "host": ["{{catalogoUrl}}"], "path": ["api", "objetos"] }
+      }
+    }
+  ]
+}

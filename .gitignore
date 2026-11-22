@@ -12,6 +12,7 @@ out/
 # Carpeta de reparto interna (no se sube al repo)
 _reparto/
 
-# Documentos de trabajo (fuera del repo; solo se versiona el README)
-docs/
+# Documentos de trabajo (fuera del repo), salvo la coleccion de pruebas de la entrega
+docs/*
+!docs/Comunal.Entrega2.postman_collection.json
 *.log
