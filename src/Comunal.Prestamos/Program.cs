@@ -1,4 +1,5 @@
 using System.Text;
+using Comunal.Prestamos.Clients;
 using Comunal.Prestamos.Data;
 using Comunal.Prestamos.Options;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -14,6 +15,14 @@ var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOption
 // --- Base de datos ---
 builder.Services.AddDbContext<PrestamosContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// --- Comunicación síncrona con el microservicio Catálogo (HttpClient tipado) ---
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<ICatalogoClient, CatalogoClient>(cliente =>
+{
+    cliente.BaseAddress = new Uri(builder.Configuration["Servicios:CatalogoUrl"]!);
+    cliente.Timeout = TimeSpan.FromSeconds(10);
+});
 
 // --- Validación del JWT emitido por Identity (firma, emisor, audiencia y vigencia) ---
 builder.Services

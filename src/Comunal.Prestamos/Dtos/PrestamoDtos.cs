@@ -7,6 +7,7 @@ public record CrearPrestamoRequest(int ObjetoId);
 public record PrestamoDto(
     int Id,
     int ObjetoId,
+    string? NombreObjeto,
     string SolicitanteId,
     string Estado,
     DateTime FechaSolicitud,

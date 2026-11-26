@@ -1,5 +1,6 @@
 using Comunal.Catalogo.Api.Models;
 using Comunal.Catalogo.Application.Objetos.Commands.ActualizarObjeto;
+using Comunal.Catalogo.Application.Objetos.Commands.CambiarDisponibilidad;
 using Comunal.Catalogo.Application.Objetos.Commands.PublicarObjeto;
 using Comunal.Catalogo.Application.Objetos.Commands.RetirarObjeto;
 using Comunal.Catalogo.Application.Objetos.Dtos;
@@ -99,6 +100,38 @@ public class ObjetosController : ControllerBase
     public async Task<ActionResult> Retirar(int id, CancellationToken cancellationToken)
     {
         await _mediator.Send(new RetirarObjetoCommand(id), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Marca el objeto como Prestado. Lo llama de forma síncrona el microservicio
+    /// Préstamos al aprobar un préstamo (reenvía el JWT del Administrador).
+    /// </summary>
+    [HttpPut("{id:int}/prestar")]
+    [Authorize(Roles = "Administrador")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> MarcarPrestado(int id, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new MarcarObjetoPrestadoCommand(id), cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Vuelve a dejar el objeto Disponible. Lo llama de forma síncrona el microservicio
+    /// Préstamos al registrar la devolución (cualquier usuario autenticado).
+    /// </summary>
+    [HttpPut("{id:int}/devolver")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> MarcarDisponible(int id, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(new MarcarObjetoDisponibleCommand(id), cancellationToken);
         return NoContent();
     }
 }
