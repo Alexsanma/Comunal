@@ -6,5 +6,6 @@
     <Project Path="src/Comunal.Catalogo.Infrastructure/Comunal.Catalogo.Infrastructure.csproj" />
     <Project Path="src/Comunal.Identity/Comunal.Identity.csproj" />
     <Project Path="src/Comunal.Prestamos/Comunal.Prestamos.csproj" />
+    <Project Path="src/Comunal.Web/Comunal.Web.csproj" />
   </Folder>
 </Solution>
