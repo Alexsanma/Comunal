@@ -43,6 +43,13 @@ builder.Services
     });
 builder.Services.AddAuthorization();
 
+// --- CORS: permite que la interfaz web (Comunal.Web) llame a este microservicio ---
+builder.Services.AddCors(options =>
+    options.AddPolicy("Frontend", politica => politica
+        .WithOrigins(builder.Configuration["Frontend:Url"] ?? "http://localhost:5080")
+        .AllowAnyHeader()
+        .AllowAnyMethod()));
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -80,6 +87,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
