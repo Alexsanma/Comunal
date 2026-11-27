@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Comunal – Préstamos entre vecinos</title>
+  <link rel="stylesheet" href="css/estilos.css">
+</head>
+<body>
+  <header class="barra">
+    <div class="marca">
+      <span class="logo">C</span>
+      <div>
+        <strong>Comunal</strong>
+        <small>Objetos compartidos de la comunidad</small>
+      </div>
+    </div>
+    <div id="usuario" class="usuario oculto">
+      <span id="usuario-email"></span>
+      <span id="usuario-rol" class="chip"></span>
+      <button id="btn-salir" class="btn secundario">Salir</button>
+    </div>
+  </header>
+
+  <!-- Inicio de sesión (Identity) -->
+  <main id="vista-login" class="login">
+    <form id="form-login" class="tarjeta">
+      <h1>Iniciar sesión</h1>
+      <p class="ayuda">Autenticación con el microservicio <b>Identity</b> (JWT).</p>
+      <label>Correo
+        <input id="email" type="email" autocomplete="username" required>
+      </label>
+      <label>Contraseña
+        <input id="password" type="password" autocomplete="current-password" required>
+      </label>
+      <button type="submit" class="btn">Entrar</button>
+      <p id="login-error" class="error"></p>
+      <div class="usuarios-prueba">
+        <b>Usuarios de prueba</b>
+        <span>admin@comunal.com · Administrador</span>
+        <span>miembro@comunal.com · Miembro</span>
+      </div>
+    </form>
+  </main>
+
+  <!-- Aplicación -->
+  <div id="vista-app" class="app oculto">
+    <nav class="pestanas">
+      <button class="pestana activa" data-tab="catalogo">Catálogo</button>
+      <button class="pestana" data-tab="mios">Mis préstamos</button>
+      <button class="pestana solo-admin" data-tab="admin">Administrar préstamos</button>
+    </nav>
+
+    <div class="contenido">
+      <main>
+        <section id="tab-catalogo" class="panel">
+          <div class="titulo-panel">
+            <h2>Catálogo de objetos</h2>
+            <button id="btn-recargar" class="btn secundario">Actualizar</button>
+          </div>
+          <div id="lista-objetos" class="grilla"></div>
+        </section>
+
+        <section id="tab-mios" class="panel oculto">
+          <div class="titulo-panel"><h2>Mis préstamos</h2></div>
+          <table class="tabla">
+            <thead><tr><th>#</th><th>Objeto</th><th>Estado</th><th>Solicitado</th><th></th></tr></thead>
+            <tbody id="tabla-mios"></tbody>
+          </table>
+        </section>
+
+        <section id="tab-admin" class="panel oculto">
+          <div class="titulo-panel"><h2>Todos los préstamos</h2></div>
+          <table class="tabla">
+            <thead><tr><th>#</th><th>Objeto</th><th>Solicitante</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="tabla-admin"></tbody>
+          </table>
+        </section>
+      </main>
+
+      <aside class="tarjeta actividad">
+        <h3>Actividad entre servicios</h3>
+        <p class="ayuda">Cada llamada HTTP que hace la interfaz a los microservicios.</p>
+        <ul id="actividad"></ul>
+      </aside>
+    </div>
+  </div>
+
+  <div id="avisos" class="avisos"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/prestamos.js"></script>
+</body>
+</html>
