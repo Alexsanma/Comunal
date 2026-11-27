@@ -1,27 +1,54 @@
 # Comunal – Microservicios
 
-Plataforma para que una comunidad comparta y recupere objetos. La solución está formada por
-**tres microservicios** en **.NET 8**, cada uno con su propia base de datos (SQL Server + EF Core):
+Plataforma para que una comunidad comparta objetos mediante préstamos. La solución está formada
+por **tres microservicios** en **.NET 8**, cada uno con su propia base de datos (SQL Server + EF Core),
+y una **interfaz web** que los consume.
 
-| Microservicio | Responsabilidad | Puerto (https / http) | Base de datos |
+| Proyecto | Responsabilidad | Puerto (http) | Base de datos |
 |---|---|---|---|
-| **Identity** | Autenticación con ASP.NET Core Identity y emisión de **JWT** | 7100 / 5100 | ComunalIdentity |
-| **Catálogo** | Objetos de la comunidad (Entrega 1), ahora con endpoints protegidos | 7090 / 5090 | ComunalCatalogo |
-| **Préstamos** | Préstamos de objetos, con endpoints protegidos | 7110 / 5110 | ComunalPrestamos |
+| **Comunal.Web** | Interfaz de usuario (HTML + CSS + JavaScript) | 5080 | — |
+| **Identity** | Autenticación con ASP.NET Core Identity y emisión de **JWT** | 5100 | ComunalIdentity |
+| **Catálogo** | Objetos de la comunidad (Clean Architecture + DDD + CQRS) | 5090 | ComunalCatalogo |
+| **Préstamos** | Solicitar, aprobar y devolver préstamos | 5110 | ComunalPrestamos |
 
-Identity autentica a los usuarios y emite un JWT firmado (HMAC-SHA256) con vigencia y con los
-claims de usuario y roles. Catálogo y Préstamos **validan ese JWT** (firma, emisor, audiencia y
-vigencia) y autorizan el acceso **por roles**.
+```
+                 ┌──────────────────────┐
+                 │  Comunal.Web (5080)  │   navegador
+                 └──────────┬───────────┘
+                HTTP + JWT  │
+      ┌─────────────────────┼──────────────────────┐
+      ▼                     ▼                      ▼
+┌───────────┐        ┌────────────┐  HTTP+JWT ┌────────────┐
+│ Identity  │        │  Catálogo  │◄──────────│ Préstamos  │
+│  (5100)   │        │   (5090)   │ síncrona  │   (5110)   │
+└───────────┘        └────────────┘           └────────────┘
+```
+
+## Comunicación síncrona entre microservicios
+
+**Préstamos** llama a **Catálogo** por HTTP (request/response) con un `HttpClient` tipado
+(`src/Comunal.Prestamos/Clients/CatalogoClient.cs`) y reenvía el JWT del usuario, así que el
+Catálogo vuelve a validar el token y el rol:
+
+| Acción en Préstamos | Llamada a Catálogo | Para qué |
+|---|---|---|
+| `POST /api/prestamos` (solicitar) | `GET /api/objetos/{id}` | Verifica que el objeto exista (404) y esté **Disponible** (400) |
+| `PUT /api/prestamos/{id}/aprobar` | `PUT /api/objetos/{id}/prestar` | Marca el objeto como **Prestado** |
+| `PUT /api/prestamos/{id}/devolver` | `PUT /api/objetos/{id}/devolver` | Deja el objeto **Disponible** de nuevo |
+| `GET /api/prestamos`, `/mios` | `GET /api/objetos` | Muestra el nombre del objeto en cada préstamo |
+
+Si el Catálogo no responde, Préstamos devuelve **503** con un mensaje claro. Cada llamada queda
+registrada en la consola de Préstamos (`Préstamos -> Catálogo: ...`).
 
 ## Seguridad
 
 - **Autenticación:** `POST /api/auth/login` en Identity devuelve el JWT.
-- **Autorización por roles:** se usan los atributos `[Authorize]` y `[Authorize(Roles = "...")]` de ASP.NET Core.
-- **401 vs 403:** sin token (o token inválido/expirado) → **401**; autenticado pero sin el rol requerido → **403**.
-- **Contraseñas:** se almacenan con el hash seguro de ASP.NET Core Identity (nunca en texto plano).
-- La configuración del JWT (`Jwt` en `appsettings.json`) es la misma en los tres servicios.
+- **Autorización por roles:** `[Authorize]` y `[Authorize(Roles = "Administrador")]`.
+- **401 vs 403:** sin token o token inválido/expirado → **401**; sin el rol requerido → **403**.
+- **Contraseñas:** se guardan con el hash seguro de ASP.NET Core Identity.
+- **CORS:** los tres microservicios aceptan peticiones del origen de la interfaz (`http://localhost:5080`).
 
-### Usuarios sembrados (Seeders)
+### Usuarios sembrados
 
 | Correo | Contraseña | Rol |
 |---|---|---|
@@ -31,44 +58,35 @@ vigencia) y autorizan el acceso **por roles**.
 ## Cómo ejecutar
 
 Requisitos: **.NET SDK 8.0** y **SQL Server LocalDB**. Cada microservicio crea y siembra su base
-de datos al iniciar. Hay que levantar los **tres** (cada uno en su terminal):
+de datos al iniciar. Abre **cuatro** terminales en la raíz del repositorio:
 
 ```bash
-dotnet run --project src/Comunal.Identity   --launch-profile https   # Identity  -> https://localhost:7100/swagger
-dotnet run --project src/Comunal.Catalogo.Api --launch-profile https  # Catálogo  -> https://localhost:7090/swagger
-dotnet run --project src/Comunal.Prestamos  --launch-profile https    # Préstamos -> https://localhost:7110/swagger
+dotnet run --project src/Comunal.Identity --launch-profile http
+dotnet run --project src/Comunal.Catalogo.Api --launch-profile http
+dotnet run --project src/Comunal.Prestamos --launch-profile http
+dotnet run --project src/Comunal.Web --launch-profile http
 ```
 
-En Swagger, usa el botón **Authorize** y pega el token devuelto por el login (sin la palabra
-`Bearer`). También puedes abrir la solución completa con `Comunal.slnx`.
+Luego abre **http://localhost:5080**. Swagger de cada servicio: `http://localhost:{puerto}/swagger`.
 
-## Endpoints principales
+## Interfaz web
 
-**Identity**
-- `POST /api/auth/login` — inicia sesión y devuelve el JWT.
-- `GET /api/auth/me` — datos del usuario autenticado (requiere token).
+- **Iniciar sesión** (Identity) con cualquiera de los usuarios sembrados.
+- **Catálogo:** lista los objetos y su estado; botón *Solicitar préstamo* en los disponibles.
+- **Mis préstamos:** préstamos del usuario; *Devolver* en los aprobados.
+- **Administrar préstamos** (solo Administrador): *Aprobar* y *Registrar devolución*.
+- **Actividad entre servicios:** panel con cada llamada HTTP que hace la interfaz y su código de respuesta.
 
-**Catálogo** (requiere token; escritura solo rol Administrador)
-- `GET /api/objetos`, `GET /api/objetos/{id}`, `GET /api/objetos/categoria/{categoriaId}`
-- `POST/PUT/DELETE /api/objetos` → solo Administrador
+## Escenarios del video (entrega final)
 
-**Préstamos** (requiere token; aprobar solo rol Administrador)
-- `GET /api/prestamos`, `GET /api/prestamos/mios`, `POST /api/prestamos`
-- `PUT /api/prestamos/{id}/aprobar` → solo Administrador
-- `PUT /api/prestamos/{id}/devolver`
-
-## Pruebas (escenarios del video)
-
-En `docs/` está la colección de Postman (`Comunal.Entrega2.postman_collection.json`). Los escenarios:
-
-1. **Ejecución de los tres microservicios.**
-2. **Login** con credenciales válidas → se obtiene el JWT.
-3. **Acceso sin token** a un endpoint protegido → **401**.
-4. **Acceso con token válido** → **200**.
-5. **Autorización por rol:** Administrador en un endpoint de escritura → **201/204**.
-6. **Sin el rol requerido:** Miembro en un endpoint de Administrador → **403**.
-7. **Credenciales inválidas** en el login → **401**.
-8. **Token inválido o expirado** → **401**.
+1. Arquitectura y ejecución de los cuatro proyectos.
+2. Login con credenciales inválidas → 401; login correcto como **Miembro**.
+3. Catálogo cargado desde el microservicio Catálogo.
+4. Solicitar un préstamo → Préstamos consulta al Catálogo (comunicación síncrona) → 201.
+5. Regla de negocio: objeto con solicitud pendiente → 400.
+6. Login como **Administrador** → aprobar → el objeto pasa a **Prestado** en el Catálogo.
+7. Consola de Préstamos con las llamadas `Préstamos -> Catálogo`.
+8. Registrar devolución → el objeto vuelve a **Disponible**.
 
 ## Integrantes
 
